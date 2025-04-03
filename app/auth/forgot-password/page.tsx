@@ -22,9 +22,7 @@ export default function ForgotPassword() {
         height={200}
         className="mt-8 mb-8"
       />
-
       <h1 className="text-2xl font-bold text-orange-500 mb-2">Quên mật khẩu</h1>
-
       <p className="text-gray-600 text-center mb-8">
         Vui lòng nhập email để lấy lại mật khẩu
       </p>

@@ -9,8 +9,8 @@ export default function SignIn() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Xử lý đăng nhập ở đây
-    router.push("/home");
+    // Handle authentication here
+    router.push("/dashboard");
   };
 
   return (

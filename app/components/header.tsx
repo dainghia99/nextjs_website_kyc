@@ -72,8 +72,6 @@ export default function Header() {
           </nav>
         </div>
       </div>
-
-      {/* Mobile navigation */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg">
         <div className="flex justify-around">
           {links.map(({ href, label, icon: Icon }) => (

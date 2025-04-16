@@ -3,14 +3,25 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { login } from "@/services/auth";
 
 export default function SignIn() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle authentication here
-    router.push("/dashboard");
+    try {
+      const response = await login({ email, password });
+      localStorage.setItem("token", response.token);
+      localStorage.setItem("user", JSON.stringify(response.user));
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Đăng nhập thất bại");
+    }
   };
 
   return (
@@ -30,6 +41,8 @@ export default function SignIn() {
           </label>
           <input
             type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
             className="mt-1 block w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md"
           />
@@ -41,10 +54,14 @@ export default function SignIn() {
           </label>
           <input
             type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             required
             className="mt-1 block w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md"
           />
         </div>
+
+        {error && <p className="text-red-500 text-sm">{error}</p>}
 
         <Link
           href="/auth/forgot-password"

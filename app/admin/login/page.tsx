@@ -3,114 +3,94 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { login } from "@/services/auth";
+import { useLoginMutation } from "@/store/services/authApi";
+import { useCheckAdminQuery } from "@/store/services/adminApi";
+import { useAppDispatch } from "@/store/hooks";
+import { setUser } from "@/store/slices/userSlice";
+import { addNotification } from "@/store/slices/notificationSlice";
 
 export default function AdminLogin() {
     const router = useRouter();
+    const dispatch = useAppDispatch();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false);
+    const [token, setToken] = useState<string | null>(null);
+    
+    // RTK Query hooks
+    const [login, { isLoading: isLoggingIn }] = useLoginMutation();
+    const { data: adminData, isLoading: isCheckingAdmin, error: adminError } = 
+        useCheckAdminQuery(undefined, { skip: !token });
 
+    // Kiểm tra token trong localStorage và tự động kiểm tra quyền admin
     useEffect(() => {
-        // Kiểm tra xem người dùng đã đăng nhập chưa
-        const token = localStorage.getItem("token");
-        const userStr = localStorage.getItem("user");
+        const storedToken = localStorage.getItem("token");
+        if (storedToken) {
+            setToken(storedToken);
+        }
+    }, []);
 
-        if (token && userStr) {
-            try {
-                // Gọi API để kiểm tra quyền admin
-                const checkAdmin = async () => {
-                    try {
-                        const response = await fetch(
-                            "http://localhost:5000/admin/check-admin",
-                            {
-                                headers: {
-                                    Authorization: `Bearer ${token}`,
-                                },
-                            }
-                        );
-
-                        if (response.ok) {
-                            const data = await response.json();
-                            if (data.is_admin) {
-                                // Cập nhật thông tin user trong localStorage
-                                const user = JSON.parse(userStr);
-                                user.role = data.role;
-                                localStorage.setItem(
-                                    "user",
-                                    JSON.stringify(user)
-                                );
-
-                                router.replace("/admin/dashboard");
-                            }
-                        }
-                    } catch (error) {
-                        console.error("Error checking admin status:", error);
-                    }
-                };
-
-                checkAdmin();
-            } catch (error) {
-                console.error("Error parsing user data:", error);
+    // Xử lý chuyển hướng sau khi xác minh admin thành công
+    useEffect(() => {
+        if (adminData && adminData.is_admin) {
+            // Cập nhật thông tin người dùng trong Redux store và localStorage
+            const userStr = localStorage.getItem("user");
+            if (userStr) {
+                try {
+                    const user = JSON.parse(userStr);
+                    user.role = adminData.role;
+                    localStorage.setItem("user", JSON.stringify(user));
+                    
+                    // Cập nhật Redux store
+                    dispatch(setUser(user));
+                    
+                    // Thông báo thành công
+                    dispatch(addNotification({
+                        message: "Đăng nhập quản trị thành công",
+                        type: 'success',
+                        duration: 3000,
+                    }));
+                    
+                    // Chuyển hướng đến dashboard
+                    router.replace("/admin/dashboard");
+                } catch (error) {
+                    console.error("Error parsing user data:", error);
+                }
             }
         }
-    }, [router]);
+    }, [adminData, router, dispatch]);
+
+    // Xử lý lỗi từ checkAdmin
+    useEffect(() => {
+        if (adminError) {
+            setError("Bạn không có quyền truy cập khu vực quản trị");
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            setToken(null);
+        }
+    }, [adminError]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
-        setLoading(true);
 
         try {
-            // Đăng nhập bình thường
-            const response = await login({ email, password });
-
-            // Lưu thông tin đăng nhập
-            localStorage.setItem("token", response.token);
-            localStorage.setItem("user", JSON.stringify(response.user));
-
-            // Kiểm tra quyền admin
-            try {
-                const adminCheck = await fetch(
-                    "http://localhost:5000/admin/check-admin",
-                    {
-                        headers: {
-                            Authorization: `Bearer ${response.token}`,
-                        },
-                    }
-                );
-
-                if (!adminCheck.ok) {
-                    throw new Error("Không có quyền truy cập");
-                }
-
-                const adminData = await adminCheck.json();
-
-                if (!adminData.is_admin) {
-                    setError("Bạn không có quyền truy cập khu vực quản trị");
-                    localStorage.removeItem("token");
-                    localStorage.removeItem("user");
-                    return;
-                }
-
-                // Cập nhật role trong thông tin người dùng
-                const user = response.user;
-                user.role = adminData.role;
-                localStorage.setItem("user", JSON.stringify(user));
-
-                // Chuyển hướng đến dashboard
-                router.push("/admin/dashboard");
-            } catch (adminErr) {
-                console.error("Error checking admin status:", adminErr);
-                setError("Bạn không có quyền truy cập khu vực quản trị");
-                localStorage.removeItem("token");
-                localStorage.removeItem("user");
-            }
-        } catch (err: any) {
-            setError(err.response?.data?.error || "Đăng nhập thất bại");
-        } finally {
-            setLoading(false);
+            // Đăng nhập sử dụng RTK Query
+            const result = await login({ email, password }).unwrap();
+            
+            // Lưu token vào localStorage và state
+            localStorage.setItem("token", result.token);
+            localStorage.setItem("user", JSON.stringify(result.user));
+            setToken(result.token);
+            
+        } catch (error: any) {
+            console.error("Login error:", error);
+            setError(error.data?.message || "Đăng nhập thất bại");
+            
+            // Xóa thông tin đăng nhập nếu lỗi
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            setToken(null);
         }
     };
 
@@ -157,6 +137,7 @@ export default function AdminLogin() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
                                 placeholder="Email"
+                                disabled={isLoggingIn || isCheckingAdmin}
                             />
                         </div>
                         <div>
@@ -173,6 +154,7 @@ export default function AdminLogin() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
                                 placeholder="Mật khẩu"
+                                disabled={isLoggingIn || isCheckingAdmin}
                             />
                         </div>
                     </div>
@@ -180,10 +162,10 @@ export default function AdminLogin() {
                     <div>
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={isLoggingIn || isCheckingAdmin}
                             className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:bg-orange-300"
                         >
-                            {loading ? (
+                            {(isLoggingIn || isCheckingAdmin) ? (
                                 <span className="absolute left-0 inset-y-0 flex items-center pl-3">
                                     <div className="h-5 w-5 border-t-2 border-b-2 border-white rounded-full animate-spin"></div>
                                 </span>
@@ -204,7 +186,7 @@ export default function AdminLogin() {
                                     </svg>
                                 </span>
                             )}
-                            {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+                            {(isLoggingIn || isCheckingAdmin) ? "Đang xử lý..." : "Đăng nhập"}
                         </button>
                     </div>
                 </form>

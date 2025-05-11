@@ -12,7 +12,11 @@ import {
     Cog6ToothIcon,
     ChartBarIcon,
 } from "@heroicons/react/24/outline";
-import { logout } from "@/services/auth";
+import { useCheckAdminQuery } from "@/store/services/adminApi";
+import { useLogoutMutation } from "@/store/services/authApi";
+import { useAppDispatch } from "@/store/hooks";
+import { logout as logoutAction } from "@/store/slices/userSlice";
+import { addNotification } from "@/store/slices/notificationSlice";
 
 export default function AdminLayout({
     children,
@@ -21,70 +25,60 @@ export default function AdminLayout({
 }) {
     const router = useRouter();
     const pathname = usePathname();
-    const [isAdmin, setIsAdmin] = useState(false);
-    const [loading, setLoading] = useState(true);
-
+    const dispatch = useAppDispatch();
+    
+    // RTK Query hooks
+    const { data: adminData, isLoading, error } = useCheckAdminQuery();
+    const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
+    
+    // Xử lý lỗi khi kiểm tra quyền admin
     useEffect(() => {
-        // Kiểm tra xem người dùng có phải là admin không
-        const checkAdmin = async () => {
-            try {
-                const token = localStorage.getItem("token");
-                const userStr = localStorage.getItem("user");
-
-                if (!token || !userStr) {
-                    router.replace("/admin/login");
-                    return;
-                }
-
-                // Gọi API để kiểm tra quyền admin
-                const response = await fetch(
-                    "http://localhost:5000/admin/check-admin",
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
-
-                if (!response.ok) {
-                    throw new Error("Không có quyền truy cập");
-                }
-
-                const data = await response.json();
-
-                if (data.is_admin) {
-                    setIsAdmin(true);
-
-                    // Cập nhật thông tin user trong localStorage
-                    const user = JSON.parse(userStr);
-                    user.role = data.role;
-                    localStorage.setItem("user", JSON.stringify(user));
-                } else {
-                    // Nếu không phải admin, chuyển hướng về trang đăng nhập admin
-                    router.replace("/admin/login");
-                }
-            } catch (error) {
-                console.error("Error checking admin status:", error);
-                router.replace("/admin/login");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        checkAdmin();
-    }, [router]);
+        if (error) {
+            // Nếu có lỗi khi kiểm tra quyền admin, chuyển hướng về trang đăng nhập admin
+            router.replace("/admin/login");
+            
+            // Thêm thông báo
+            dispatch(addNotification({
+                message: "Bạn cần đăng nhập để truy cập khu vực quản trị",
+                type: 'error',
+                duration: 5000,
+            }));
+        }
+    }, [error, router, dispatch]);
 
     const handleLogout = async () => {
         try {
-            await logout();
+            // Gọi API logout
+            await logout().unwrap();
+            
+            // Xóa dữ liệu trong localStorage
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            
+            // Cập nhật Redux store
+            dispatch(logoutAction());
+            
+            // Hiển thị thông báo
+            dispatch(addNotification({
+                message: "Đăng xuất thành công",
+                type: 'success',
+                duration: 3000,
+            }));
+            
+            // Chuyển hướng về trang đăng nhập
             router.replace("/admin/login");
         } catch (error) {
             console.error("Logout error:", error);
+            
+            // Vẫn xóa thông tin người dùng ở client và chuyển hướng
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            dispatch(logoutAction());
             router.replace("/admin/login");
         }
     };
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="text-center">
@@ -95,8 +89,12 @@ export default function AdminLayout({
         );
     }
 
-    if (!isAdmin) {
-        return null; // Sẽ chuyển hướng trong useEffect
+    // Kiểm tra xem có phải admin không
+    const isAdmin = adminData?.is_admin;
+    if (!isAdmin && !isLoading) {
+        // Chuyển hướng đến trang đăng nhập admin
+        router.replace("/admin/login");
+        return null;
     }
 
     const navigation = [
@@ -173,13 +171,14 @@ export default function AdminLayout({
                         <div className="flex-shrink-0 p-4 border-t">
                             <button
                                 onClick={handleLogout}
+                                disabled={isLoggingOut}
                                 className="flex items-center text-sm font-medium text-gray-500 rounded-md hover:text-gray-700 group"
                             >
                                 <ArrowLeftOnRectangleIcon
                                     className="w-6 h-6 mr-3 text-gray-400 group-hover:text-gray-500"
                                     aria-hidden="true"
                                 />
-                                Đăng xuất
+                                {isLoggingOut ? "Đang xử lý..." : "Đăng xuất"}
                             </button>
                         </div>
                     </div>

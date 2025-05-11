@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { getKYCStatus } from "@/services/kyc";
+import KycStatus from "./components/KycStatus";
+import UserProfile from "./components/UserProfile";
 
 export default function Home() {
     const router = useRouter();
@@ -103,6 +105,8 @@ export default function Home() {
                             Đăng ký
                         </Link>
                     </div>
+                    
+                    
                 </div>
             </div>
         );
@@ -195,7 +199,7 @@ export default function Home() {
                         href="/verify"
                         className="text-orange-500 font-medium hover:text-orange-600"
                     >
-                        Đi đến trang xác thực →
+                        Đi đến trang xác thực
                     </Link>
                 </div>
 
@@ -211,10 +215,12 @@ export default function Home() {
                         href="/history"
                         className="text-orange-500 font-medium hover:text-orange-600"
                     >
-                        Xem lịch sử →
+                        Xem lịch sử
                     </Link>
                 </div>
             </div>
+
+            
         </div>
     );
 }

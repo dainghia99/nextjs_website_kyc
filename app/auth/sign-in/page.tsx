@@ -3,26 +3,93 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { login } from "@/services/auth";
+import { useState, useEffect } from "react";
+import { useLoginMutation } from "@/store/services/authApi";
+import { useAppDispatch } from "@/store/hooks";
+import { setUser } from "@/store/slices/userSlice";
+import { addNotification } from "@/store/slices/notificationSlice";
 
 export default function SignIn() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-
+  
+  // Sử dụng hook từ RTK Query
+  const [login, { isLoading, isSuccess, data, error: loginError }] = useLoginMutation();
+  const dispatch = useAppDispatch();
+  
+  // Xử lý submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     try {
-      const response = await login({ email, password });
-      localStorage.setItem("token", response.token);
-      localStorage.setItem("user", JSON.stringify(response.user));
-      router.push("/dashboard");
+      // Sử dụng RTK Query mutation thay vì gọi trực tiếp API
+      await login({ email, password }).unwrap();
     } catch (err: any) {
-      setError(err.response?.data?.error || "Đăng nhập thất bại");
+      const errorMessage = err.data?.message || "Đăng nhập thất bại";
+      setError(errorMessage);
+      
+      // Hiển thị thông báo lỗi
+      dispatch(addNotification({
+        message: errorMessage,
+        type: 'error',
+        duration: 5000,
+      }));
     }
   };
+  
+  // Xử lý kết quả đăng nhập thành công
+  useEffect(() => {
+    if (isSuccess && data?.token && data?.user) {
+      // Lưu token và user vào localStorage như trước
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      
+      // Dispatch action để cập nhật user trong Redux store
+      dispatch(setUser({
+        ...data.user,
+        isLoggedIn: true
+      }));
+      
+      // Hiển thị thông báo thành công
+      dispatch(addNotification({
+        message: "Đăng nhập thành công!",
+        type: 'success',
+        duration: 3000,
+      }));
+      
+      // Chuyển hướng sau khi đăng nhập thành công
+      router.push("/dashboard");
+    }
+  }, [isSuccess, data, dispatch, router]);
+  
+  // Xử lý lỗi từ RTK Query
+  useEffect(() => {
+    if (loginError) {
+      if ('data' in loginError) {
+        const errorMessage = (loginError.data as any)?.message || "Đăng nhập thất bại";
+        setError(errorMessage);
+        
+        // Hiển thị thông báo lỗi
+        dispatch(addNotification({
+          message: errorMessage,
+          type: 'error',
+          duration: 5000,
+        }));
+      } else {
+        const errorMessage = "Lỗi kết nối đến server";
+        setError(errorMessage);
+        
+        // Hiển thị thông báo lỗi
+        dispatch(addNotification({
+          message: errorMessage,
+          type: 'error',
+          duration: 5000,
+        }));
+      }
+    }
+  }, [loginError, dispatch]);
 
   return (
     <div className="flex flex-col items-center p-6">
@@ -45,6 +112,7 @@ export default function SignIn() {
             onChange={(e) => setEmail(e.target.value)}
             required
             className="mt-1 block w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md"
+            disabled={isLoading}
           />
         </div>
 
@@ -58,6 +126,7 @@ export default function SignIn() {
             onChange={(e) => setPassword(e.target.value)}
             required
             className="mt-1 block w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md"
+            disabled={isLoading}
           />
         </div>
 
@@ -72,9 +141,10 @@ export default function SignIn() {
 
         <button
           type="submit"
-          className="w-full bg-orange-500 text-white py-2 rounded-md hover:bg-orange-600"
+          className="w-full bg-orange-500 text-white py-2 rounded-md hover:bg-orange-600 disabled:bg-orange-300"
+          disabled={isLoading}
         >
-          Đăng nhập
+          {isLoading ? "Đang xử lý..." : "Đăng nhập"}
         </button>
 
         <div className="text-center">

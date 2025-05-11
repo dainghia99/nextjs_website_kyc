@@ -3,8 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { register } from "@/services/auth";
+import { useState, useEffect } from "react";
+import { useRegisterMutation } from "@/store/services/authApi";
+import { useAppDispatch } from "@/store/hooks";
+import { addNotification } from "@/store/slices/notificationSlice";
 
 export default function SignUp() {
   const router = useRouter();
@@ -14,20 +16,68 @@ export default function SignUp() {
     confirmPassword: "",
   });
   const [error, setError] = useState("");
+  
+  // Sử dụng RTK Query mutation hook
+  const [register, { isLoading, isSuccess, error: registerError }] = useRegisterMutation();
+  const dispatch = useAppDispatch();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
+    
     if (formData.password !== formData.confirmPassword) {
       setError("Mật khẩu nhập lại không khớp");
+      dispatch(addNotification({
+        message: "Mật khẩu nhập lại không khớp",
+        type: 'error',
+        duration: 5000,
+      }));
       return;
     }
+    
     try {
-      await register(formData);
-      router.push("/auth/sign-in");
+      // Sử dụng RTK Query mutation
+      await register({
+        email: formData.email,
+        password: formData.password,
+      }).unwrap();
+      
+      // Thông báo thành công
+      dispatch(addNotification({
+        message: "Đăng ký thành công! Vui lòng đăng nhập.",
+        type: 'success',
+        duration: 3000,
+      }));
+      
     } catch (err: any) {
-      setError(err.response?.data?.error || "Đăng ký thất bại");
+      const errorMessage = err.data?.message || "Đăng ký thất bại";
+      setError(errorMessage);
+      dispatch(addNotification({
+        message: errorMessage,
+        type: 'error',
+        duration: 5000,
+      }));
     }
   };
+  
+  // Xử lý chuyển hướng sau khi đăng ký thành công
+  useEffect(() => {
+    if (isSuccess) {
+      router.push("/auth/sign-in");
+    }
+  }, [isSuccess, router]);
+  
+  // Xử lý lỗi RTK Query
+  useEffect(() => {
+    if (registerError) {
+      if ('data' in registerError) {
+        const errorMessage = (registerError.data as any)?.message || "Đăng ký thất bại";
+        setError(errorMessage);
+      } else {
+        setError("Lỗi kết nối đến máy chủ");
+      }
+    }
+  }, [registerError]);
 
   return (
     <div className="flex flex-col items-center p-6">
@@ -52,6 +102,7 @@ export default function SignUp() {
               setFormData({ ...formData, email: e.target.value })
             }
             className="mt-1 block w-full px-3 text-gray-700 py-2 border border-gray-300 rounded-md"
+            disabled={isLoading}
           />
         </div>
 
@@ -67,6 +118,7 @@ export default function SignUp() {
               setFormData({ ...formData, password: e.target.value })
             }
             className="mt-1 block w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-md"
+            disabled={isLoading}
           />
         </div>
 
@@ -82,6 +134,7 @@ export default function SignUp() {
               setFormData({ ...formData, confirmPassword: e.target.value })
             }
             className="mt-1 block w-full px-3 text-gray-700 py-2 border border-gray-300 rounded-md"
+            disabled={isLoading}
           />
         </div>
 
@@ -89,9 +142,10 @@ export default function SignUp() {
 
         <button
           type="submit"
-          className="w-full bg-orange-500 text-white py-2 rounded-md hover:bg-orange-600"
+          className="w-full bg-orange-500 text-white py-2 rounded-md hover:bg-orange-600 disabled:bg-orange-300"
+          disabled={isLoading}
         >
-          Đăng ký
+          {isLoading ? "Đang xử lý..." : "Đăng ký"}
         </button>
 
         <div className="text-center">

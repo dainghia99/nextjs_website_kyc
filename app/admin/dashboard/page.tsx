@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getVerifiedAccounts, getKYCStatus } from "@/services/kyc";
+import { useState } from "react";
 import {
   UserGroupIcon,
   IdentificationIcon,
   CheckCircleIcon,
   ClockIcon,
 } from "@heroicons/react/24/outline";
+import { useGetStatisticsQuery, useGetKYCRequestsQuery } from "@/store/services/adminApi";
+import { useAppDispatch } from "@/store/hooks";
+import { addNotification } from "@/store/slices/notificationSlice";
 
 interface StatCardProps {
   title: string;
@@ -49,73 +51,38 @@ function StatCard({ title, value, description, icon: Icon, color }: StatCardProp
 }
 
 export default function AdminDashboard() {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
+  const dispatch = useAppDispatch();
+  
+  // Sử dụng RTK Query hooks thay vì gọi API trực tiếp
+  const { data: statsData, isLoading: statsLoading, error: statsError, refetch: refetchStats } = 
+    useGetStatisticsQuery();
+  
+  const { data: kycData, isLoading: kycLoading, error: kycError, refetch: refetchKYC } = 
+    useGetKYCRequestsQuery({ page: 1, perPage: 5, status: 'verified' });
+  
+  // Giá trị mặc định cho thống kê khi API chưa trả về dữ liệu
+  const stats = statsData || {
     totalUsers: 0,
     verifiedUsers: 0,
     pendingUsers: 0,
     verificationRate: "0%",
-  });
-  const [recentAccounts, setRecentAccounts] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Lấy danh sách tài khoản đã xác minh
-        const accountsData = await getVerifiedAccounts();
-        const accounts = accountsData.accounts || [];
-        setRecentAccounts(accounts.slice(0, 5)); // Lấy 5 tài khoản gần nhất
-
-        // Tạm thời: Giả lập số liệu thống kê
-        // Trong thực tế, bạn nên có API riêng để lấy số liệu thống kê
-        setStats({
-          totalUsers: accounts.length + 8, // Giả sử có thêm 8 người dùng chưa xác minh
-          verifiedUsers: accounts.length,
-          pendingUsers: 8,
-          verificationRate: `${Math.round((accounts.length / (accounts.length + 8)) * 100)}%`,
-        });
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-        
-        // Sử dụng dữ liệu mẫu nếu API chưa được triển khai
-        setRecentAccounts([
-          {
-            id: 1,
-            email: "user1@example.com",
-            full_name: "Nguyễn Văn A",
-            verified_at: "2024-05-15T10:30:00",
-            status: "verified"
-          },
-          {
-            id: 2,
-            email: "user2@example.com",
-            full_name: "Trần Thị B",
-            verified_at: "2024-05-14T14:45:00",
-            status: "verified"
-          },
-          {
-            id: 3,
-            email: "user3@example.com",
-            full_name: "Lê Văn C",
-            verified_at: "2024-05-13T09:15:00",
-            status: "verified"
-          }
-        ]);
-        
-        setStats({
-          totalUsers: 11,
-          verifiedUsers: 3,
-          pendingUsers: 8,
-          verificationRate: "27%",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  };
+  
+  // Dữ liệu hiển thị - ưu tiên dữ liệu từ API, nếu không có thì dùng dữ liệu mẫu
+  const recentAccounts = kycData?.requests?.slice(0, 5) || [];
+  
+  // Loading state tổng hợp
+  const loading = statsLoading || kycLoading;
+  
+  // Xử lý lỗi
+  if (statsError || kycError) {
+    const error = statsError || kycError;
+    dispatch(addNotification({
+      message: "Không thể tải dữ liệu dashboard",
+      type: 'error',
+      duration: 5000,
+    }));
+  }
 
   // Hàm định dạng ngày giờ
   const formatDateTime = (dateTimeStr: string) => {
@@ -127,6 +94,17 @@ export default function AdminDashboard() {
       hour: '2-digit',
       minute: '2-digit'
     }).format(date);
+  };
+  
+  // Hàm làm mới dữ liệu
+  const handleRefresh = () => {
+    refetchStats();
+    refetchKYC();
+    dispatch(addNotification({
+      message: "Đang làm mới dữ liệu...",
+      type: 'info',
+      duration: 2000,
+    }));
   };
 
   return (
@@ -174,8 +152,24 @@ export default function AdminDashboard() {
 
           {/* Danh sách tài khoản gần đây */}
           <div className="mt-8">
-            <h2 className="text-lg font-medium text-gray-900">Tài khoản xác minh gần đây</h2>
-            <div className="mt-4 flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-medium text-gray-900">Tài khoản xác minh gần đây</h2>
+              <button 
+                onClick={handleRefresh}
+                className="bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 flex items-center"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <span className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></span>
+                    <span>Đang tải...</span>
+                  </>
+                ) : (
+                  <span>Làm mới</span>
+                )}
+              </button>
+            </div>
+            <div className="flex flex-col">
               <div className="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                 <div className="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
                   <div className="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
@@ -229,7 +223,7 @@ export default function AdminDashboard() {
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {formatDateTime(account.verified_at)}
+                                {formatDateTime(account.verified_at || account.submitted_at)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">

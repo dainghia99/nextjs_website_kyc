@@ -52,6 +52,11 @@ export const verifyLiveness = async (formData: FormData) => {
     return response.data;
 };
 
+export const confirmIdCardInfo = async (identityInfo: any) => {
+    const response = await api.post("/kyc/confirm-id-card-info", identityInfo);
+    return response.data;
+};
+
 export const processImageDirect = async (
     imagePath: string,
     isFront: boolean,

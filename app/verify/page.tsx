@@ -10,26 +10,46 @@ import {
     useGetKycStatusQuery,
     useGetFaceVerificationStatusQuery,
     useUploadIdCardMutation,
-    useVerifyFaceMatchMutation
+    useConfirmIdCardInfoMutation,
+    useVerifyFaceMatchMutation,
+    IdentityInfo,
 } from "@/store/services/kycApi";
+import IdCardInfo from "./id-card-info";
 
 export default function VerifyPage() {
     const router = useRouter();
     const dispatch = useAppDispatch();
-    
+
     // RTK Query hooks
-    const { data: kycStatus, isLoading: kycLoading, refetch: refetchKyc } = useGetKycStatusQuery();
-    const { data: faceStatus, isLoading: faceLoading, refetch: refetchFace } = useGetFaceVerificationStatusQuery();
-    const [uploadIdCard, { isLoading: isUploading }] = useUploadIdCardMutation();
-    const [verifyFaceMatch, { isLoading: isVerifying }] = useVerifyFaceMatchMutation();
-    
+    const {
+        data: kycStatus,
+        isLoading: kycLoading,
+        refetch: refetchKyc,
+    } = useGetKycStatusQuery();
+    const {
+        data: faceStatus,
+        isLoading: faceLoading,
+        refetch: refetchFace,
+    } = useGetFaceVerificationStatusQuery();
+    const [uploadIdCard, { isLoading: isUploading }] =
+        useUploadIdCardMutation();
+    const [confirmIdCardInfo, { isLoading: isConfirming }] =
+        useConfirmIdCardInfoMutation();
+    const [verifyFaceMatch, { isLoading: isVerifying }] =
+        useVerifyFaceMatchMutation();
+
     // Local state
     const [frontIdFile, setFrontIdFile] = useState<File | null>(null);
     const [backIdFile, setBackIdFile] = useState<File | null>(null);
     const [selfieFile, setSelfieFile] = useState<File | null>(null);
-    
+    const [showIdCardInfo, setShowIdCardInfo] = useState<boolean>(false);
+    const [extractedIdInfo, setExtractedIdInfo] = useState<IdentityInfo | null>(
+        null
+    );
+
     // Loading state combined
-    const loading = kycLoading || faceLoading || isUploading || isVerifying;
+    const loading =
+        kycLoading || faceLoading || isUploading || isConfirming || isVerifying;
 
     const handleFrontIdUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -51,30 +71,44 @@ export default function VerifyPage() {
 
     const handleIdCardSubmit = async (isFront: boolean) => {
         const file = isFront ? frontIdFile : backIdFile;
-        
+
         if (!file) {
-            dispatch(addNotification({
-                message: `Vui lòng chọn ảnh ${isFront ? "mặt trước" : "mặt sau"} CCCD`,
-                type: 'error',
-                duration: 5000,
-            }));
+            dispatch(
+                addNotification({
+                    message: `Vui lòng chọn ảnh ${
+                        isFront ? "mặt trước" : "mặt sau"
+                    } CCCD`,
+                    type: "error",
+                    duration: 5000,
+                })
+            );
             return;
         }
-        
+
         try {
             // Sử dụng RTK Query mutation
-            await uploadIdCard({ file, isFront }).unwrap();
-            
+            const result = await uploadIdCard({ file, isFront }).unwrap();
+
             // Thông báo thành công
-            dispatch(addNotification({
-                message: `Tải lên ảnh ${isFront ? "mặt trước" : "mặt sau"} CCCD thành công!`,
-                type: 'success',
-                duration: 3000,
-            }));
-            
+            dispatch(
+                addNotification({
+                    message: `Tải lên ảnh ${
+                        isFront ? "mặt trước" : "mặt sau"
+                    } CCCD thành công!`,
+                    type: "success",
+                    duration: 3000,
+                })
+            );
+
             // Làm mới dữ liệu KYC
-            refetchKyc();
-            
+            const kycData = await refetchKyc();
+
+            // Nếu đã tải lên cả mặt trước và mặt sau, hiển thị thông tin trích xuất
+            if (kycData.data?.identity_info && !isFront) {
+                setExtractedIdInfo(kycData.data.identity_info);
+                setShowIdCardInfo(true);
+            }
+
             // Reset file đã chọn
             if (isFront) {
                 setFrontIdFile(null);
@@ -83,48 +117,92 @@ export default function VerifyPage() {
             }
         } catch (error: any) {
             console.error("Upload error:", error);
-            dispatch(addNotification({
-                message: error.data?.error || `Lỗi khi tải lên ảnh ${isFront ? "mặt trước" : "mặt sau"} CCCD`,
-                type: 'error',
-                duration: 5000,
-            }));
+            dispatch(
+                addNotification({
+                    message:
+                        error.data?.error ||
+                        `Lỗi khi tải lên ảnh ${
+                            isFront ? "mặt trước" : "mặt sau"
+                        } CCCD`,
+                    type: "error",
+                    duration: 5000,
+                })
+            );
+        }
+    };
+
+    const handleConfirmIdCardInfo = async (updatedInfo: IdentityInfo) => {
+        try {
+            // Sử dụng RTK Query mutation để xác nhận thông tin CCCD
+            await confirmIdCardInfo(updatedInfo).unwrap();
+
+            // Thông báo thành công
+            dispatch(
+                addNotification({
+                    message: "Xác nhận thông tin CCCD thành công!",
+                    type: "success",
+                    duration: 3000,
+                })
+            );
+
+            // Làm mới dữ liệu KYC
+            refetchKyc();
+
+            // Ẩn form xác nhận thông tin
+            setShowIdCardInfo(false);
+        } catch (error: any) {
+            console.error("Confirm ID card info error:", error);
+            dispatch(
+                addNotification({
+                    message:
+                        error.data?.error || "Lỗi khi xác nhận thông tin CCCD",
+                    type: "error",
+                    duration: 5000,
+                })
+            );
         }
     };
 
     const handleFaceVerification = async () => {
         if (!selfieFile) {
-            dispatch(addNotification({
-                message: "Vui lòng chọn ảnh selfie",
-                type: 'error',
-                duration: 5000,
-            }));
+            dispatch(
+                addNotification({
+                    message: "Vui lòng chọn ảnh selfie",
+                    type: "error",
+                    duration: 5000,
+                })
+            );
             return;
         }
-        
+
         try {
             // Sử dụng RTK Query mutation
             await verifyFaceMatch(selfieFile).unwrap();
-            
+
             // Thông báo thành công
-            dispatch(addNotification({
-                message: "Xác minh khuôn mặt thành công!",
-                type: 'success',
-                duration: 3000,
-            }));
-            
+            dispatch(
+                addNotification({
+                    message: "Xác minh khuôn mặt thành công!",
+                    type: "success",
+                    duration: 3000,
+                })
+            );
+
             // Làm mới dữ liệu
             refetchKyc();
             refetchFace();
-            
+
             // Reset file đã chọn
             setSelfieFile(null);
         } catch (error: any) {
             console.error("Face verification error:", error);
-            dispatch(addNotification({
-                message: error.data?.error || "Lỗi khi xác minh khuôn mặt",
-                type: 'error',
-                duration: 5000,
-            }));
+            dispatch(
+                addNotification({
+                    message: error.data?.error || "Lỗi khi xác minh khuôn mặt",
+                    type: "error",
+                    duration: 5000,
+                })
+            );
         }
     };
 
@@ -135,17 +213,19 @@ export default function VerifyPage() {
     // Tự động chuyển hướng nếu đã xác minh
     useEffect(() => {
         if (isFullyVerified) {
-            dispatch(addNotification({
-                message: "Bạn đã hoàn thành quá trình xác minh KYC!",
-                type: 'success',
-                duration: 5000,
-            }));
-            
+            dispatch(
+                addNotification({
+                    message: "Bạn đã hoàn thành quá trình xác minh KYC!",
+                    type: "success",
+                    duration: 5000,
+                })
+            );
+
             // Chờ 2 giây trước khi chuyển hướng
             const timer = setTimeout(() => {
-                router.push('/dashboard');
+                router.push("/dashboard");
             }, 2000);
-            
+
             return () => clearTimeout(timer);
         }
     }, [isFullyVerified, router, dispatch]);
@@ -159,6 +239,15 @@ export default function VerifyPage() {
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500 mb-2"></div>
                     <p>Đang tải...</p>
                 </div>
+            )}
+
+            {/* Hiển thị thông tin CCCD đã trích xuất để xác nhận */}
+            {showIdCardInfo && extractedIdInfo && (
+                <IdCardInfo
+                    identityInfo={extractedIdInfo}
+                    onConfirm={handleConfirmIdCardInfo}
+                    onCancel={() => setShowIdCardInfo(false)}
+                />
             )}
 
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -317,9 +406,9 @@ export default function VerifyPage() {
                     Xác minh liveness
                 </h2>
                 <p className="text-gray-600 mb-4">
-                    Để hoàn tất quá trình xác minh KYC, vui lòng thực hiện xác minh
-                    liveness (chứng minh bạn là người thật). Bạn sẽ được yêu cầu
-                    thực hiện một số hành động trước camera.
+                    Để hoàn tất quá trình xác minh KYC, vui lòng thực hiện xác
+                    minh liveness (chứng minh bạn là người thật). Bạn sẽ được
+                    yêu cầu thực hiện một số hành động trước camera.
                 </p>
                 <Link
                     href="/verify/liveness"

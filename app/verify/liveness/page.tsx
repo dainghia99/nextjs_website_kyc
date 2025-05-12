@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Camera from "@/app/components/camera";
-import { verifyLiveness } from "@/services/kyc";
+import { useVerifyLivenessMutation } from "@/store/services/kycApi";
 
 export default function LivenessVerificationPage() {
     const router = useRouter();
@@ -14,6 +14,10 @@ export default function LivenessVerificationPage() {
     const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
     const [verificationResult, setVerificationResult] = useState<any>(null);
     const [showCamera, setShowCamera] = useState(true);
+
+    // Sử dụng RTK Query mutation
+    const [verifyLiveness, { isLoading: isVerifying }] =
+        useVerifyLivenessMutation();
 
     // Kiểm tra xem người dùng đã đăng nhập chưa
     useEffect(() => {
@@ -55,8 +59,8 @@ export default function LivenessVerificationPage() {
             const formData = new FormData();
             formData.append("video", videoBlob, "liveness.webm");
 
-            // Gọi API xác minh liveness
-            const result = await verifyLiveness(formData);
+            // Gọi API xác minh liveness sử dụng RTK Query
+            const result = await verifyLiveness(formData).unwrap();
 
             setVerificationResult(result);
 
@@ -104,8 +108,7 @@ export default function LivenessVerificationPage() {
         } catch (error: any) {
             console.error("Lỗi xác minh:", error);
             setError(
-                error.response?.data?.error ||
-                    "Không thể xác minh. Vui lòng thử lại sau."
+                error.data?.error || "Không thể xác minh. Vui lòng thử lại sau."
             );
         } finally {
             setLoading(false);
@@ -154,14 +157,14 @@ export default function LivenessVerificationPage() {
                     </div>
                 )}
 
-                {loading && (
+                {(loading || isVerifying) && (
                     <div className="text-center py-4">
                         <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500 mb-2"></div>
                         <p>Đang xử lý video...</p>
                     </div>
                 )}
 
-                {showCamera && !loading && (
+                {showCamera && !loading && !isVerifying && (
                     <Camera
                         onCapture={handleCapture}
                         onError={handleCameraError}
@@ -169,7 +172,7 @@ export default function LivenessVerificationPage() {
                     />
                 )}
 
-                {videoBlob && !showCamera && !loading && (
+                {videoBlob && !showCamera && !loading && !isVerifying && (
                     <div className="mt-4">
                         <h3 className="font-medium mb-2">Video đã ghi:</h3>
                         <video

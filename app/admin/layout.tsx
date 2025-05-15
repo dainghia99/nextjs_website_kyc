@@ -26,23 +26,25 @@ export default function AdminLayout({
     const router = useRouter();
     const pathname = usePathname();
     const dispatch = useAppDispatch();
-    
+
     // RTK Query hooks
     const { data: adminData, isLoading, error } = useCheckAdminQuery();
     const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
-    
+
     // Xử lý lỗi khi kiểm tra quyền admin
     useEffect(() => {
         if (error) {
             // Nếu có lỗi khi kiểm tra quyền admin, chuyển hướng về trang đăng nhập admin
             router.replace("/admin/login");
-            
+
             // Thêm thông báo
-            dispatch(addNotification({
-                message: "Bạn cần đăng nhập để truy cập khu vực quản trị",
-                type: 'error',
-                duration: 5000,
-            }));
+            dispatch(
+                addNotification({
+                    message: "Bạn cần đăng nhập để truy cập khu vực quản trị",
+                    type: "error",
+                    duration: 5000,
+                })
+            );
         }
     }, [error, router, dispatch]);
 
@@ -50,26 +52,28 @@ export default function AdminLayout({
         try {
             // Gọi API logout
             await logout().unwrap();
-            
+
             // Xóa dữ liệu trong localStorage
             localStorage.removeItem("token");
             localStorage.removeItem("user");
-            
+
             // Cập nhật Redux store
             dispatch(logoutAction());
-            
+
             // Hiển thị thông báo
-            dispatch(addNotification({
-                message: "Đăng xuất thành công",
-                type: 'success',
-                duration: 3000,
-            }));
-            
+            dispatch(
+                addNotification({
+                    message: "Đăng xuất thành công",
+                    type: "success",
+                    duration: 3000,
+                })
+            );
+
             // Chuyển hướng về trang đăng nhập
             router.replace("/admin/login");
         } catch (error) {
             console.error("Logout error:", error);
-            
+
             // Vẫn xóa thông tin người dùng ở client và chuyển hướng
             localStorage.removeItem("token");
             localStorage.removeItem("user");
@@ -117,11 +121,6 @@ export default function AdminLayout({
             name: "Thống kê",
             href: "/admin/statistics",
             icon: ChartBarIcon,
-        },
-        {
-            name: "Cài đặt",
-            href: "/admin/settings",
-            icon: Cog6ToothIcon,
         },
     ];
 

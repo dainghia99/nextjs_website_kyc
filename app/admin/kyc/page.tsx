@@ -12,7 +12,6 @@ import {
     useGetKYCRequestsQuery,
     useApproveKYCMutation,
     useRejectKYCMutation,
-    useUpdateTestUserMutation,
 } from "@/store/services/adminApi";
 import { useAppDispatch } from "@/store/hooks";
 import { addNotification } from "@/store/slices/notificationSlice";
@@ -35,8 +34,6 @@ export default function KYCManagement() {
 
     const [approveKYC, { isLoading: isApproving }] = useApproveKYCMutation();
     const [rejectKYC, { isLoading: isRejecting }] = useRejectKYCMutation();
-    const [updateTestUser, { isLoading: isUpdatingTestUser }] =
-        useUpdateTestUserMutation();
 
     // Lấy dữ liệu
     const kycRequests = data?.requests || [];
@@ -192,30 +189,6 @@ export default function KYCManagement() {
         setCurrentPage(1); // Reset về trang 1 khi thay đổi bộ lọc
     };
 
-    // Xử lý cập nhật user test
-    const handleUpdateTestUser = async () => {
-        try {
-            await updateTestUser().unwrap();
-            dispatch(
-                addNotification({
-                    message: "Đã cập nhật user test thành công",
-                    type: "success",
-                    duration: 3000,
-                })
-            );
-            refetch(); // Làm mới danh sách
-        } catch (error) {
-            console.error("Update test user error:", error);
-            dispatch(
-                addNotification({
-                    message: "Không thể cập nhật user test",
-                    type: "error",
-                    duration: 5000,
-                })
-            );
-        }
-    };
-
     return (
         <div>
             <h1 className="text-2xl font-semibold text-gray-900">
@@ -252,7 +225,6 @@ export default function KYCManagement() {
                         <option value="all">Tất cả trạng thái</option>
                         <option value="pending">Đang chờ</option>
                         <option value="verified">Đã xác minh</option>
-                        <option value="rejected">Đã từ chối</option>
                     </select>
 
                     <button
@@ -261,16 +233,6 @@ export default function KYCManagement() {
                         disabled={isLoading}
                     >
                         {isLoading ? "Đang tải..." : "Làm mới"}
-                    </button>
-
-                    <button
-                        onClick={handleUpdateTestUser}
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        disabled={isUpdatingTestUser}
-                    >
-                        {isUpdatingTestUser
-                            ? "Đang cập nhật..."
-                            : "Cập nhật user test"}
                     </button>
                 </div>
             </div>

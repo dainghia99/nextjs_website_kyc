@@ -189,15 +189,6 @@ export const adminApi = createApi({
             query: () => "/admin/statistics",
             providesTags: ["Statistics"],
         }),
-
-        // Cập nhật user test
-        updateTestUser: builder.mutation<void, void>({
-            query: () => ({
-                url: "/admin/update-test-user",
-                method: "POST",
-            }),
-            invalidatesTags: ["KYCRequests", "Statistics"],
-        }),
     }),
 });
 
@@ -214,5 +205,4 @@ export const {
     useRejectKYCMutation,
     useManualVerifyKYCMutation,
     useGetStatisticsQuery,
-    useUpdateTestUserMutation,
 } = adminApi;

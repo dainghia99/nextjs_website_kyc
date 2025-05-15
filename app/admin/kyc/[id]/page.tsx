@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
 import {
     CheckCircleIcon,
     XCircleIcon,
@@ -392,12 +391,11 @@ export default function KYCDetail() {
                             <p className="text-sm font-medium text-gray-500 mb-2">
                                 CCCD - Mặt trước
                             </p>
-                            <div className="relative h-48 w-full border rounded overflow-hidden">
-                                <Image
-                                    src={kycRequest.id_card_front}
+                            <div className="h-48 w-full border rounded overflow-hidden flex items-center justify-center">
+                                <img
+                                    src={`http://localhost:5000${kycRequest.id_card_front}`}
                                     alt="CCCD mặt trước"
-                                    fill
-                                    style={{ objectFit: "contain" }}
+                                    className="max-h-full max-w-full object-contain"
                                 />
                             </div>
                         </div>
@@ -407,12 +405,11 @@ export default function KYCDetail() {
                             <p className="text-sm font-medium text-gray-500 mb-2">
                                 CCCD - Mặt sau
                             </p>
-                            <div className="relative h-48 w-full border rounded overflow-hidden">
-                                <Image
-                                    src={kycRequest.id_card_back}
+                            <div className="h-48 w-full border rounded overflow-hidden flex items-center justify-center">
+                                <img
+                                    src={`http://localhost:5000${kycRequest.id_card_back}`}
                                     alt="CCCD mặt sau"
-                                    fill
-                                    style={{ objectFit: "contain" }}
+                                    className="max-h-full max-w-full object-contain"
                                 />
                             </div>
                         </div>
@@ -422,15 +419,14 @@ export default function KYCDetail() {
                             <p className="text-sm font-medium text-gray-500 mb-2">
                                 Ảnh chân dung
                             </p>
-                            <div className="relative h-48 w-full border rounded overflow-hidden">
-                                <Image
-                                    src={
+                            <div className="h-48 w-full border rounded overflow-hidden flex items-center justify-center">
+                                <img
+                                    src={`http://localhost:5000${
                                         kycRequest.selfie ||
                                         kycRequest.selfie_path
-                                    }
+                                    }`}
                                     alt="Ảnh chân dung"
-                                    fill
-                                    style={{ objectFit: "contain" }}
+                                    className="max-h-full max-w-full object-contain"
                                 />
                             </div>
                         </div>

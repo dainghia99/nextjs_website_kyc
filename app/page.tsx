@@ -1,16 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { getKYCStatus } from "@/services/kyc";
-import KycStatus from "./components/KycStatus";
-import UserProfile from "./components/UserProfile";
 
 export default function Home() {
-    const router = useRouter();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [kycStatus, setKycStatus] = useState<string>("pending");
@@ -105,8 +102,6 @@ export default function Home() {
                             Đăng ký
                         </Link>
                     </div>
-                    
-                    
                 </div>
             </div>
         );
@@ -219,8 +214,6 @@ export default function Home() {
                     </Link>
                 </div>
             </div>
-
-            
         </div>
     );
 }

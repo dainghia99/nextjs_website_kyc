@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-nocheck
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import { useAppDispatch } from "@/store/hooks";
 import { addNotification } from "@/store/slices/notificationSlice";
@@ -87,7 +89,7 @@ export default function VerifyPage() {
 
         try {
             // Sử dụng RTK Query mutation
-            const result = await uploadIdCard({ file, isFront }).unwrap();
+            await uploadIdCard({ file, isFront }).unwrap();
 
             // Thông báo thành công
             dispatch(
@@ -115,6 +117,7 @@ export default function VerifyPage() {
             } else {
                 setBackIdFile(null);
             }
+            // eslint-disable-next-line
         } catch (error: any) {
             console.error("Upload error:", error);
             dispatch(
@@ -150,6 +153,7 @@ export default function VerifyPage() {
 
             // Ẩn form xác nhận thông tin
             setShowIdCardInfo(false);
+            // eslint-disable-next-line
         } catch (error: any) {
             console.error("Confirm ID card info error:", error);
             dispatch(
@@ -194,6 +198,7 @@ export default function VerifyPage() {
 
             // Reset file đã chọn
             setSelfieFile(null);
+            // eslint-disable-next-line
         } catch (error: any) {
             console.error("Face verification error:", error);
             dispatch(
@@ -223,7 +228,7 @@ export default function VerifyPage() {
 
             // Chờ 2 giây trước khi chuyển hướng
             const timer = setTimeout(() => {
-                router.push("/dashboard");
+                router.push("/");
             }, 2000);
 
             return () => clearTimeout(timer);

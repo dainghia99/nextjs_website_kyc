@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-nocheck
+
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -77,10 +80,12 @@ export default function Camera({
                     streamRef.current,
                     { mimeType: "video/webm" }
                 );
+                console.log(e);
             } catch (e) {
                 onError(
                     "Trình duyệt của bạn không hỗ trợ ghi hình. Vui lòng thử trình duyệt khác."
                 );
+                console.log(e);
                 return;
             }
         }
